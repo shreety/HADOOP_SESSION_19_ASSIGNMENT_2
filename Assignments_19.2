@@ -1,0 +1,35 @@
+import org.apache.spark.sql.functions._
+case class Record(Firstname: String,Lastname: String,Sports: String,Medal_type: String,Age: Int,Year: Int,Country: String)
+
+val sportsDataSet = sc.textFile("hdfs:///user/cloudera/Sports_data.txt").filter(_.nonEmpty)
+val skip_first_row = sportsDataSet.first() 
+val FilteredSportsDataSet= sportsDataSet.filter(row => row != skip_first_row)
+
+val dfRecords = FilteredSportsDataSet.map(_.split(",") match{
+case Array(firstname,lastname,sports,medal_type,age,year,country) => Record(firstname,lastname,sports,medal_type,age.toInt,year.toInt,country)
+case unexpectedArrayForm => 
+    throw new RuntimeException("Record did not have correct number of fields: " +
+      unexpectedArrayForm.mkString("\t"))
+}).toDF()
+
+1.
+def ModifyName(firstName: String, secondName: String) : String = {
+val Title = "Mr."
+val SubfirstName = Title.concat(firstName.substring(0,2))
+val ModifyFullName = SubfirstName.concat(" ").concat(secondName)
+return ModifyFullName
+}
+val myudf = udf(ModifyName _)
+
+dfRecords.withColumn("ModifiedName",myudf(dfRecords("Firstname"),dfRecords("Lastname"))).show()
+
+2. 
+def Rank(medalType: String, age: Int) : String = {
+if ((medalType == "gold") && (age >= 32)) {return "Pro"}
+else if ((medalType == "gold") && (age <= 31)){return "amateur"}
+else if ((medalType == "silver") && (age >= 32)){return "Expert"}
+else {return "Rookie"}
+}
+
+val myudf = udf(Rank _)
+dfRecords.withColumn("Rank",myudf(dfRecords("Medal_type"),dfRecords("Age"))).show()
